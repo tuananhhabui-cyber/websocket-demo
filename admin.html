@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Fruit Game</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- ===== THÊM SOCKET.IO ===== -->
+  <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', 'Roboto', monospace;
+    }
+    body {
+      background: #0a0e1a;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+      color: #00ffc8;
+    }
+    .admin-container {
+      max-width: 1000px;
+      width: 100%;
+      background: #111827;
+      border-radius: 30px;
+      padding: 24px 22px;
+      border: 2px solid #00ffc8;
+      box-shadow: 0 0 40px rgba(0, 255, 200, 0.15);
+    }
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #00ffc8;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .admin-header h1 {
+      font-size: 26px;
+      color: #00ffc8;
+      text-shadow: 0 0 20px #00ffc880;
+      letter-spacing: 2px;
+    }
+    .admin-header .status {
+      font-size: 13px;
+      background: #00ffc822;
+      padding: 6px 16px;
+      border-radius: 30px;
+      border: 1px solid #00ffc8;
+    }
+    .tab-menu {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      background: transparent;
+      border: 2px solid #00ffc866;
+      color: #00ffc8;
+      padding: 10px 24px;
+      border-radius: 40px;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+      flex: 1;
+      min-width: 140px;
+    }
+    .tab-btn.active {
+      background: #00ffc8;
+      color: #0a0e1a;
+      border-color: #00ffc8;
+      box-shadow: 0 0 30px #00ffc855;
+    }
+    .tab-btn:hover {
+      background: #00ffc833;
+    }
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card {
+      background: #1a2332;
+      border-radius: 24px;
+      padding: 20px;
+      border: 1px solid #00ffc844;
+      margin-bottom: 20px;
+    }
+    .card label {
+      display: block;
+      font-weight: 600;
+      color: #88ffdd;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .card input, .card select {
+      width: 100%;
+      padding: 14px 18px;
+      border-radius: 40px;
+      border: 2px solid #00ffc866;
+      background: #0a0e1a;
+      color: #00ffc8;
+      font-size: 16px;
+      margin-bottom: 14px;
+      outline: none;
+      transition: 0.2s;
+    }
+    .card input:focus, .card select:focus {
+      border-color: #00ffc8;
+      box-shadow: 0 0 20px #00ffc844;
+    }
+    .btn-admin {
+      background: #00ffc8;
+      color: #0a0e1a;
+      border: none;
+      border-radius: 60px;
+      padding: 14px 28px;
+      font-weight: 800;
+      font-size: 18px;
+      cursor: pointer;
+      transition: 0.15s;
+      width: 100%;
+      box-shadow: 0 4px 0 #00997a;
+    }
+    .btn-admin:active {
+      transform: translateY(4px);
+      box-shadow: none;
+    }
+    .list-item {
+      background: #0a0e1a;
+      border-radius: 16px;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+      border-left: 6px solid #00ffc8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .list-item .info {
+      color: #bbffee;
+      font-size: 14px;
+    }
+    .list-item .info strong {
+      color: #00ffc8;
+    }
+    .list-item .actions {
+      display: flex;
+      gap: 10px;
+    }
+    .list-item .actions button {
+      background: #00ffc8;
+      border: none;
+      padding: 6px 18px;
+      border-radius: 30px;
+      font-weight: 700;
+      color: #0a0e1a;
+      cursor: pointer;
+      transition: 0.1s;
+    }
+    .list-item .actions button:active {
+      transform: scale(0.95);
+    }
+    .list-item .actions button.deny {
+      background: #ff4466;
+      color: white;
+    }
+    .empty-msg {
+      color: #00ffc888;
+      text-align: center;
+      padding: 30px 0;
+      font-style: italic;
+    }
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #00ffc8;
+      color: #0a0e1a;
+      padding: 14px 28px;
+      border-radius: 60px;
+      font-weight: 700;
+      font-size: 16px;
+      box-shadow: 0 8px 30px #00ffc855;
+      z-index: 9999;
+      animation: slideUp 0.4s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(40px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    .badge {
+      background: #00ffc833;
+      padding: 2px 12px;
+      border-radius: 30px;
+      font-size: 12px;
+      border: 1px solid #00ffc866;
+    }
+    .admin-footer {
+      margin-top: 30px;
+      text-align: center;
+      color: #00ffc866;
+      font-size: 13px;
+      border-top: 1px solid #00ffc833;
+      padding-top: 18px;
+    }
+    .withdraw-detail {
+      font-size: 13px;
+      color: #88ffdd;
+      margin: 4px 0;
+    }
+    .pending-item {
+      border-left-color: #ffd700 !important;
+    }
+    .badge-pending {
+      background: #ffd70033;
+      color: #ffd700;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+    }
+    @media (max-width: 600px) {
+      .list-item { flex-direction: column; align-items: stretch; }
+      .list-item .actions { justify-content: flex-end; }
+    }
+  </style>
+</head>
+<body>
+<div class="admin-container">
+  <div class="admin-header">
+    <h1>🖥️ ADMIN · FRUIT GAME</h1>
+    <span class="status" id="adminStatus"><i class="fas fa-circle" style="color: #00ffc8;"></i> online</span>
+  </div>
+
+  <div class="tab-menu">
+    <button class="tab-btn active" data-tab="tab1">💰 Cấp tiền</button>
+    <button class="tab-btn" data-tab="tab2">📥 Duyệt rút <span id="pendingBadge" class="badge" style="margin-left:6px;">0</span></button>
+  </div>
+
+  <div id="tab1" class="tab-content active">
+    <div class="card">
+      <label>🔑 Mã tài khoản khách</label>
+      <input type="text" id="adminUserId" placeholder="VD: ABC123_Z">
+      <label>💰 Số tiền cấp (₫)</label>
+      <input type="number" id="adminAmount" placeholder="Nhập số tiền" value="50000">
+      <button class="btn-admin" id="sendMoneyBtn"><i class="fas fa-paper-plane"></i> Cấp tiền cho khách</button>
+      <div id="sendResult" style="margin-top: 12px; color: #88ffdd; font-weight: 600;"></div>
+    </div>
+
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span style="color: #88ffdd; font-weight: 700;">📋 Danh sách user</span>
+        <span class="badge" id="userCount">0</span>
+      </div>
+      <div id="userListContainer">
+        <div class="empty-msg">Chưa có user nào</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab2" class="tab-content">
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span style="color: #88ffdd; font-weight: 700;">📥 Yêu cầu rút tiền</span>
+        <span class="badge" id="pendingCount">0</span>
+      </div>
+      <div id="withdrawRequests">
+        <div class="empty-msg">Không có yêu cầu rút nào</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-footer">
+    ⚡ Kết nối localStorage • Dữ liệu đồng bộ tự động
+  </div>
+</div>
+
+<!-- ===== WEBSOCKET SCRIPT ===== -->
+<script>
+// ===== KẾT NỐI WEBSOCKET =====
+const socket = io();
+
+// Đăng ký admin
+socket.on('connect', () => {
+    socket.emit('register', 'admin');
+    console.log('✅ Admin WebSocket kết nối!');
+    document.getElementById('adminStatus').innerHTML = '<i class="fas fa-circle" style="color: #00ffc8;"></i> online';
+});
+
+// Nhận thông báo từ user
+socket.on('admin-notification', (data) => {
+    console.log('📨 Yêu cầu mới từ:', data.userId);
+    // Thêm vào danh sách pending
+    addPendingRequest(data);
+    // Cập nhật số lượng
+    const countEl = document.getElementById('pendingCount');
+    countEl.textContent = parseInt(countEl.textContent) + 1;
+    document.getElementById('pendingBadge').textContent = countEl.textContent;
+    showToast('📨 Yêu cầu rút mới từ ' + data.userId);
+});
+
+// Thống kê
+socket.on('admin-stats', (data) => {
+    document.getElementById('userCount').textContent = data.totalUsers || 0;
+    document.getElementById('pendingCount').textContent = data.pendingRequests || 0;
+    document.getElementById('pendingBadge').textContent = data.pendingRequests || 0;
+});
+
+// Mất kết nối
+socket.on('disconnect', () => {
+    console.log('🔴 Mất kết nối WebSocket');
+    document.getElementById('adminStatus').innerHTML = '<i class="fas fa-circle" style="color: #ff4466;"></i> offline';
+});
+
+// ===== BIẾN LƯU REQUEST ID =====
+let pendingRequestMap = {};
+</script>
+
+<script>
+(function() {
+  const STORAGE_KEY = 'fruit_users';
+
+  function getUsers() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch { return {}; }
+  }
+
+  function saveUsers(users) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+  }
+  
+  function showToast(msg, isError = false) {
+    const old = document.querySelector('.toast');
+    if (old) old.remove();
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    if (isError) {
+      el.style.background = '#ff4466';
+      el.style.color = 'white';
+      el.style.boxShadow = '0 8px 30px #ff446688';
+    }
+    document.body.appendChild(el);
+    setTimeout(() => {
+      if (el.parentNode) el.remove();
+    }, 3500);
+  }
+
+  function renderUserList() {
+    const users = getUsers();
+    const container = document.getElementById('userListContainer');
+    const countEl = document.getElementById('userCount');
+    const keys = Object.keys(users);
+    countEl.textContent = keys.length;
+
+    if (keys.length === 0) {
+      container.innerHTML = `<div class="empty-msg">Chưa có user nào</div>`;
+      return;
+    }
+
+    let html = '';
+    keys.forEach(key => {
+      const u = users[key];
+      html += `
+        <div class="list-item">
+          <div class="info">
+            <strong>${u.id || key}</strong> 
+            <span style="color:#88ffdd;">💰 ${(u.tien || 0).toLocaleString('vi')}₫</span>
+            <span style="color:#ffaacc;">🪙 ${(u.xu || 0)}</span>
+            <span style="font-size:12px;">🏆 Lv${u.level || 1}</span>
+          </div>
+          <div class="actions">
+            <button onclick="window.copyUserId('${u.id || key}')">📋 Copy ID</button>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  window.copyUserId = function(id) {
+    navigator.clipboard?.writeText(id)?.then(() => {
+      showToast('📋 Đã copy mã: ' + id);
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = id;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      showToast('📋 Đã copy mã: ' + id);
+    });
+  };
+
+  // ===== THÊM PENDING REQUEST =====
+  function addPendingRequest(data) {
+    pendingRequestMap[data.id] = data;
+    renderWithdrawRequests();
+  }
+
+  function removePendingRequest(id) {
+    delete pendingRequestMap[id];
+    renderWithdrawRequests();
+  }
+
+  function renderWithdrawRequests() {
+    const users = getUsers();
+    const container = document.getElementById('withdrawRequests');
+    const countEl = document.getElementById('pendingCount');
+
+    let pendingList = [];
+    
+    // Lấy từ localStorage
+    for (let key in users) {
+      const u = users[key];
+      if (u.history && Array.isArray(u.history)) {
+        u.history.forEach((h, idx) => {
+          if (h.status === 'pending') {
+            pendingList.push({
+              userId: u.id || key,
+              userKey: key,
+              historyIdx: idx,
+              amount: h.amount,
+              method: h.method || 'ZaloPay',
+              time: h.time || 'N/A',
+              zaloName: h.zaloName || 'Chưa có',
+              zaloPhone: h.zaloPhone || 'Chưa có'
+            });
+          }
+        });
+      }
+    }
+    
+    // Thêm từ WebSocket (nếu chưa có trong localStorage)
+    for (let id in pendingRequestMap) {
+      const p = pendingRequestMap[id];
+      const exists = pendingList.some(item => 
+        item.userId === p.userId && item.amount === p.amount && item.time === p.time
+      );
+      if (!exists) {
+        pendingList.push({
+          userId: p.userId,
+          userKey: p.userKey || p.userId,
+          historyIdx: p.historyIdx || 0,
+          amount: p.amount,
+          method: 'ZaloPay',
+          time: p.time,
+          zaloName: p.zaloName || 'Chưa có',
+          zaloPhone: p.zaloPhone || 'Chưa có',
+          fromSocket: true,
+          socketId: p.id
+        });
+      }
+    }
+
+    countEl.textContent = pendingList.length;
+    document.getElementById('pendingBadge').textContent = pendingList.length;
+
+    if (pendingList.length === 0) {
+      container.innerHTML = `<div class="empty-msg">Không có yêu cầu rút nào</div>`;
+      return;
+    }
+
+    let html = '';
+    pendingList.forEach((item) => {
+      html += `
+        <div class="list-item pending-item" id="pending-${item.userId}-${item.historyIdx}">
+          <div class="info">
+            <div><strong>👤 ${item.userId}</strong> <span class="badge-pending">⏳ Chờ</span></div>
+            <div class="withdraw-detail">💰 ${item.amount.toLocaleString('vi')}₫</div>
+            <div class="withdraw-detail">📱 ${item.zaloName} - ${item.zaloPhone}</div>
+            <div class="withdraw-detail">⏱️ ${item.time}</div>
+          </div>
+          <div class="actions">
+            <button onclick="window.approveWithdraw('${item.userKey}', ${item.historyIdx}, '${item.socketId || ''}')">✅ Duyệt</button>
+            <button class="deny" onclick="window.denyWithdraw('${item.userKey}', ${item.historyIdx}, '${item.socketId || ''}')">❌ Từ chối</button>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  // ===== DUYỆT / TỪ CHỐI =====
+  window.approveWithdraw = function(userKey, historyIdx, socketId) {
+    if (!confirm('Xác nhận duyệt rút tiền?')) return;
+    
+    const users = getUsers();
+    if (users[userKey] && users[userKey].history && users[userKey].history[historyIdx]) {
+      users[userKey].history[historyIdx].status = 'success';
+      saveUsers(users);
+      
+      // ===== GỬI QUA WEBSOCKET =====
+      if (socketId) {
+        socket.emit('admin-action', {
+          requestId: socketId,
+          action: 'approve',
+          userId: users[userKey].id || userKey,
+          userKey: userKey,
+          historyIdx: historyIdx
+        });
+        delete pendingRequestMap[socketId];
+      }
+      
+      renderWithdrawRequests();
+      showToast('✅ Đã duyệt rút tiền!');
+      
+      // Thông báo cho user
+      const device = users[userKey].device;
+      localStorage.setItem('fruit_notification_' + device, JSON.stringify({
+        message: '✅ Rút ' + users[userKey].history[historyIdx].amount.toLocaleString('vi') + '₫ thành công!',
+        time: new Date().toLocaleString('vi')
+      }));
+    }
+  };
+
+  window.denyWithdraw = function(userKey, historyIdx, socketId) {
+    if (!confirm('Từ chối rút tiền?')) return;
+    
+    const users = getUsers();
+    if (users[userKey] && users[userKey].history && users[userKey].history[historyIdx]) {
+      const amount = users[userKey].history[historyIdx].amount || 0;
+      users[userKey].history[historyIdx].status = 'denied';
+      users[userKey].tien = (users[userKey].tien || 0) + amount;
+      saveUsers(users);
+      
+      // ===== GỬI QUA WEBSOCKET =====
+      if (socketId) {
+        socket.emit('admin-action', {
+          requestId: socketId,
+          action: 'reject',
+          userId: users[userKey].id || userKey,
+          userKey: userKey,
+          historyIdx: historyIdx
+        });
+        delete pendingRequestMap[socketId];
+      }
+      
+      renderWithdrawRequests();
+      showToast('❌ Đã từ chối rút tiền!');
+      
+      const device = users[userKey].device;
+      localStorage.setItem('fruit_notification_' + device, JSON.stringify({
+        message: '❌ Rút ' + amount.toLocaleString('vi') + '₫ bị từ chối!',
+        time: new Date().toLocaleString('vi')
+      }));
+    }
+  };
+
+  // CẤP TIỀN
+  document.getElementById('sendMoneyBtn').addEventListener('click', function() {
+    const userId = document.getElementById('adminUserId').value.trim();
+    const amount = parseInt(document.getElementById('adminAmount').value);
+    const resultEl = document.getElementById('sendResult');
+
+    if (!userId) {
+      resultEl.textContent = '❌ Nhập mã tài khoản!';
+      resultEl.style.color = '#ff4466';
+      return;
+    }
+    if (!amount || amount <= 0) {
+      resultEl.textContent = '❌ Nhập số tiền hợp lệ!';
+      resultEl.style.color = '#ff4466';
+      return;
+    }
+
+    const users = getUsers();
+    let foundKey = null;
+    for (let key in users) {
+      if (users[key].id === userId) {
+        foundKey = key;
+        break;
+      }
+    }
+
+    if (!foundKey) {
+      resultEl.textContent = '❌ Không tìm thấy user: ' + userId;
+      resultEl.style.color = '#ff4466';
+      return;
+    }
+
+    users[foundKey].tien = (users[foundKey].tien || 0) + amount;
+    if (!users[foundKey].history) users[foundKey].history = [];
+    users[foundKey].history.push({
+      amount: amount,
+      method: 'Admin cấp tiền',
+      time: new Date().toLocaleString('vi'),
+      status: 'success'
+    });
+
+    saveUsers(users);
+    resultEl.textContent = `✅ Đã cấp ${amount.toLocaleString('vi')}₫ cho ${userId}`;
+    resultEl.style.color = '#00ffc8';
+    renderUserList();
+    renderWithdrawRequests();
+    showToast(`✅ Cấp ${amount.toLocaleString('vi')}₫ thành công!`);
+  });
+
+  // TABS
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById(this.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Khởi tạo
+  renderUserList();
+  renderWithdrawRequests();
+
+  // Auto refresh
+  setInterval(() => {
+    renderUserList();
+    renderWithdrawRequests();
+  }, 3000);
+
+})();
+</script>
+</body>
+</html>
